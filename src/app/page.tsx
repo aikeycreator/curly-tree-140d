@@ -1,8 +1,62 @@
+'use client';
 import Image from "next/image";
+import React, { useState } from "react";
 
 export default function Home() {
+  const [count, setCount] = useState(0);
+  const [downloading, setDownloading] = useState(false);
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    try {
+      const res = await fetch("/api/stream-image");
+      if (!res.ok) throw new Error("Failed to fetch image");
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "image.png";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      alert("Failed to download image.");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
+      {/* Counter UI */}
+      <div className="mb-8 flex flex-col items-center">
+        <h2 className="text-xl font-bold mb-2">Counter</h2>
+        <div className="flex items-center gap-4">
+          <button
+            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+            onClick={() => setCount(count - 1)}
+          >
+            -
+          </button>
+          <span className="text-lg font-mono w-8 text-center">{count}</span>
+          <button
+            className="px-3 py-1 bg-gray-200 rounded hover:bg-gray-300"
+            onClick={() => setCount(count + 1)}
+          >
+            +
+          </button>
+        </div>
+        {/* Download Image Button */}
+        <button
+          className="mt-6 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:opacity-50"
+          onClick={handleDownload}
+          disabled={downloading}
+        >
+          {downloading ? "Downloading..." : "Download Image"}
+        </button>
+      </div>
+      {/* Existing content below */}
       <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
         <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
           Get started by editing&nbsp;
