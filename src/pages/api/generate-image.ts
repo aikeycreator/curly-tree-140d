@@ -8,7 +8,14 @@ function getTodayKey(ip: string) {
     const today = new Date().toISOString().slice(0, 10);
     return `${ip}_${today}`;
 }
-
+type GenerateImageRequest = {
+    prompt: string;
+    // add other fields if needed
+  };
+  type OpenAIImageResponse = {
+    data: { url: string }[];
+    // add other fields if needed
+  };
 export default async function handler(req: Request, ctx: any) {
     if (req.method === 'POST') {
         // ... (existing POST logic remains unchanged)
@@ -22,7 +29,7 @@ export default async function handler(req: Request, ctx: any) {
                 headers: { 'Content-Type': 'application/json' },
             });
         }
-        const body = await req.json();
+        const body = await req.json() as GenerateImageRequest;
         const prompt = body.prompt;
         if (!prompt) {
             return new Response(JSON.stringify({ error: 'Missing prompt' }), {
@@ -55,8 +62,8 @@ export default async function handler(req: Request, ctx: any) {
                 headers: { 'Content-Type': 'application/json' },
             });
         }
-        const data = await openaiRes.json();
-        const imageUrl = data.data[0].url;
+        const data = await openaiRes.json() as OpenAIImageResponse;
+const imageUrl = data.data[0].url;
         try {
             ctx?.env?.RATE_LIMIT?.put &&
             ctx.waitUntil(
