@@ -37,10 +37,15 @@ export default async function handler(req: Request, ctx: any) {
                 headers: { 'Content-Type': 'application/json' },
             });
         }
+        const pre_prompt=`A glossy, 3D-style, minimal yet expressive emoji of a ${prompt}. She has soft round facial features, warm skin tone, and short brown hair. The emoji is centered with no background (transparent), rendered in the style of modern smartphone emojis. Use soft shadows and realistic lighting for a polished look.`
+        console.log("prompt: " + pre_prompt)
         const apiKey = process.env.OPENAI_API_KEY || ctx?.env?.OPENAI_API_KEY;
         if (!apiKey) {
-            return new Response('API key not set', { status: 500 });
+            // return unknown server error
+            console.error("API key not set")
+            return new Response('Unknown server error', { status: 500 });
         }
+
         const openaiRes = await fetch('https://api.openai.com/v1/images/generations', {
             method: 'POST',
             headers: {
@@ -49,7 +54,7 @@ export default async function handler(req: Request, ctx: any) {
             },
             body: JSON.stringify({
                 model: 'dall-e-3',
-                prompt,
+                pre_prompt,
                 n: 1,
                 size: '1024x1024',
                 response_format: 'url',
@@ -63,7 +68,7 @@ export default async function handler(req: Request, ctx: any) {
             });
         }
         const data = await openaiRes.json() as OpenAIImageResponse;
-const imageUrl = data.data[0].url;
+        const imageUrl = data.data[0].url;
         try {
             ctx?.env?.RATE_LIMIT?.put &&
             ctx.waitUntil(
