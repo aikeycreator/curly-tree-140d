@@ -12,29 +12,10 @@ function getTodayKey(ip: string) {
 
 export default async function edgeHandler(req: Request, ctx: ExecutionContext) {
     if (req.method === 'POST') {
-        const ip = req.headers.get('cf-connecting-ip') || 'unknown';
-        const key = getTodayKey(ip);
-        const countRaw = await ctx.env?.RATE_LIMIT?.get(key);
-        const count = parseInt(countRaw || '0');
-        if (count >= MAX_REQUESTS_PER_DAY) {
-            return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
-                status: 429,
-                headers: { 'Content-Type': 'application/json' },
-            });
-        }
-
-        const body = await req.json();
-        const prompt = body.prompt;
-        if (!prompt) {
-            return new Response(JSON.stringify({ error: 'Missing prompt' }), {
-                status: 400,
-                headers: { 'Content-Type': 'application/json' },
-            });
-        }
 
         const pre_prompt = `A glossy, 3D-style, minimal yet expressive emoji of a ${prompt}. She has soft round facial features, warm skin tone, and short brown hair. The emoji is centered with no background (transparent), rendered in the style of modern smartphone emojis. Use soft shadows and realistic lighting for a polished look.`;
 
-        const apiKey = process.env.OPENAI_API_KEY || ctx?.env?.OPENAI_API_KEY;
+        const apiKey = process.env.OPENAI_API_KEY;
         if (!apiKey) {
             return new Response('Unknown server error', { status: 500 });
         }
@@ -63,18 +44,10 @@ export default async function edgeHandler(req: Request, ctx: ExecutionContext) {
         }
 
         const data = await openaiRes.json();
-        const imageUrl = data.data[0].url;
+        console.log(data)
+        //const imageUrl = data?.data[0].url;
 
-        try {
-            ctx?.env?.RATE_LIMIT?.put &&
-            ctx.waitUntil(
-                ctx.env.RATE_LIMIT.put(key, (count + 1).toString(), { expirationTtl: 86400 })
-            );
-        } catch (e) {
-            console.warn('KV put failed (probably local dev):', e);
-        }
-
-        return new Response(JSON.stringify({ imageUrl }), {
+        return new Response(JSON.stringify({ data }), {
             headers: { 'Content-Type': 'application/json' },
         });
     }
