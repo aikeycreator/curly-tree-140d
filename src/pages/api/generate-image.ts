@@ -1,5 +1,6 @@
+// edge.js (edge runtime specific code)
 export const config = {
-    runtime: 'edge', // Cloudflare Pages 환경에서 Workers처럼 동작하게 함
+    runtime: 'edge',
 };
 
 const MAX_REQUESTS_PER_DAY = 20;
@@ -8,17 +9,9 @@ function getTodayKey(ip: string) {
     const today = new Date().toISOString().slice(0, 10);
     return `${ip}_${today}`;
 }
-type GenerateImageRequest = {
-    prompt: string;
-    // add other fields if needed
-  };
-  type OpenAIImageResponse = {
-    data: { url: string }[];
-    // add other fields if needed
-  };
-export default async function handler(req: Request, ctx: any) {
+
+export default async function edgeHandler(req: Request, ctx: ExecutionContext) {
     if (req.method === 'POST') {
-        // ... (existing POST logic remains unchanged)
         const ip = req.headers.get('cf-connecting-ip') || 'unknown';
         const key = getTodayKey(ip);
         const countRaw = await ctx.env?.RATE_LIMIT?.get(key);
@@ -29,7 +22,8 @@ export default async function handler(req: Request, ctx: any) {
                 headers: { 'Content-Type': 'application/json' },
             });
         }
-        const body = await req.json() as GenerateImageRequest;
+
+        const body = await req.json();
         const prompt = body.prompt;
         if (!prompt) {
             return new Response(JSON.stringify({ error: 'Missing prompt' }), {
@@ -37,12 +31,11 @@ export default async function handler(req: Request, ctx: any) {
                 headers: { 'Content-Type': 'application/json' },
             });
         }
-        const pre_prompt=`A glossy, 3D-style, minimal yet expressive emoji of a ${prompt}. She has soft round facial features, warm skin tone, and short brown hair. The emoji is centered with no background (transparent), rendered in the style of modern smartphone emojis. Use soft shadows and realistic lighting for a polished look.`
-        console.log("prompt: " + pre_prompt)
+
+        const pre_prompt = `A glossy, 3D-style, minimal yet expressive emoji of a ${prompt}. She has soft round facial features, warm skin tone, and short brown hair. The emoji is centered with no background (transparent), rendered in the style of modern smartphone emojis. Use soft shadows and realistic lighting for a polished look.`;
+
         const apiKey = process.env.OPENAI_API_KEY || ctx?.env?.OPENAI_API_KEY;
         if (!apiKey) {
-            // return unknown server error
-            console.error("API key not set")
             return new Response('Unknown server error', { status: 500 });
         }
 
@@ -54,12 +47,13 @@ export default async function handler(req: Request, ctx: any) {
             },
             body: JSON.stringify({
                 model: 'dall-e-3',
-                pre_prompt,
+                prompt: pre_prompt,
                 n: 1,
                 size: '1024x1024',
                 response_format: 'url',
             }),
         });
+
         if (!openaiRes.ok) {
             const errText = await openaiRes.text();
             return new Response(JSON.stringify({ error: errText }), {
@@ -67,8 +61,10 @@ export default async function handler(req: Request, ctx: any) {
                 headers: { 'Content-Type': 'application/json' },
             });
         }
-        const data = await openaiRes.json() as OpenAIImageResponse;
+
+        const data = await openaiRes.json();
         const imageUrl = data.data[0].url;
+
         try {
             ctx?.env?.RATE_LIMIT?.put &&
             ctx.waitUntil(
@@ -77,12 +73,11 @@ export default async function handler(req: Request, ctx: any) {
         } catch (e) {
             console.warn('KV put failed (probably local dev):', e);
         }
+
         return new Response(JSON.stringify({ imageUrl }), {
             headers: { 'Content-Type': 'application/json' },
         });
     }
-   
 
-    // Method not allowed fallback
     return new Response('Method Not Allowed', { status: 405 });
 }
